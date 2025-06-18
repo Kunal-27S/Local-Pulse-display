@@ -1,0 +1,35 @@
+stages:
+  - deploy
+
+default:
+  image: gcr.io/google.com/cloudsdktool/cloud-sdk:465.0.0  # Full SDK with gcloud run support
+
+before_script:
+  # Install jq for JSON parsing
+  - apt-get update && apt-get install -y jq
+
+  # Decode and validate the service account key
+  - echo "$GCP_SERVICE_ACCOUNT_KEY" | base64 -d > /tmp/key.json
+  - cat /tmp/key.json | jq . || { echo "Invalid JSON in decoded key file"; exit 1; }
+
+  # Authenticate and set project
+  - gcloud auth activate-service-account --key-file=/tmp/key.json
+  - gcloud config set project "$GCP_PROJECT_ID"
+
+  # Optional: Confirm gcloud setup
+  - gcloud components list
+  - gcloud --version
+
+deploy_frontend:
+  stage: deploy
+  script:
+    - echo "📦 Submitting frontend Docker build from ./frontend"
+    - gcloud builds submit ./frontend --tag gcr.io/$GCP_PROJECT_ID/frontend
+
+    - echo "🚀 Deploying frontend to Cloud Run"
+    - >
+      gcloud run deploy frontend
+      --image gcr.io/$GCP_PROJECT_ID/frontend
+      --platform managed
+      --region asia-south1
+      --allow-unauthenticated

@@ -1,0 +1,14 @@
+fastapi==0.109.2
+uvicorn==0.27.1
+python-multipart==0.0.9
+aiohttp==3.9.3
+firebase-admin==6.4.0
+python-dotenv==1.0.1
+pydantic==2.6.1
+google-cloud-vision==3.5.0
+google-cloud-language==2.11.1
+google-auth==2.29.0
+google-api-core==2.17.1
+protobuf==4.25.3
+google-generativeai==0.3.2
+requests==2.31.0

@@ -1,0 +1,46 @@
+stages:
+  - deploy
+
+default:
+  image: gcr.io/google.com/cloudsdktool/cloud-sdk:465.0.0  # Full SDK with gcloud run support
+
+before_script:
+  # Install jq for JSON parsing
+  - apt-get update && apt-get install -y jq
+
+  # Decode and validate GCP service account key
+  - echo "$GCP_KEY_B64" | base64 -d > /tmp/key.json
+  - cat /tmp/key.json | jq . || { echo "Invalid JSON in GCP key"; exit 1; }
+
+  # Authenticate with GCP
+  - gcloud auth activate-service-account --key-file=/tmp/key.json
+  - gcloud config set project "$GCP_PROJECT_ID"
+
+  # Optional: Confirm gcloud setup
+  - gcloud --version
+  - gcloud components list
+
+deploy_content_verification:
+  stage: deploy
+  script:
+    # Decode Firebase credentials into content_verification directory BEFORE entering it
+    - mkdir -p content_verification
+    - echo "$FIREBASE_KEY_BASE64" | base64 -d > content_verification/firebase-credentials.json
+
+    - cd content_verification
+
+    # Submit the Docker build to Cloud Build
+    - echo "📦 Submitting content_verification Docker build"
+    - gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/content-verification .
+
+    # Ensure Cloud Run API is enabled
+    # - gcloud services enable run.googleapis.com
+
+    # Deploy to Cloud Run
+    - echo "🚀 Deploying content-verification to Cloud Run"
+    - >
+      gcloud run deploy content-verification
+      --image gcr.io/$GCP_PROJECT_ID/content-verification
+      --platform managed
+      --region asia-south1
+      --allow-unauthenticated

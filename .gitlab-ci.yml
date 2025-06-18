@@ -1,0 +1,7 @@
+#stages:
+  #- deploy
+
+#include:
+  #- local: 'ci/content_verification.yml'
+  #- local: 'ci/chatbot.yml'
+  #- local: 'ci/frontend.yml'

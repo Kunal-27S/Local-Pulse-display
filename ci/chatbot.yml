@@ -1,0 +1,41 @@
+stages:
+  - deploy
+
+default:
+  image: gcr.io/google.com/cloudsdktool/cloud-sdk:465.0.0  # Full SDK with gcloud run support
+
+before_script:
+  - apt-get update && apt-get install -y jq
+
+  # Decode and validate GCP service account key
+  - echo "$GCP_CHATBOT_KEY" | base64 -d > /tmp/key.json
+  - cat /tmp/key.json | jq . || { echo "Invalid JSON in GCP key"; exit 1; }
+
+  # Decode and use other cred files
+  - echo "$LOCALGRAM_KEY_B64" | base64 -d > chatbot/localgram-461614-74f492642d25.json
+  - echo "$NEWCREDENTIAL_B64" | base64 -d > chatbot/newcredential.json
+
+  # Authenticate with GCP
+  - gcloud auth activate-service-account --key-file=/tmp/key.json
+  - gcloud config set project "$GCP_PROJECT_ID"
+
+  - gcloud --version
+  - gcloud components list
+
+deploy_chatbot:
+  stage: deploy
+  script:
+    - cd chatbot
+
+    - echo "📦 Submitting chatbot Docker build"
+    - gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/chatbot-api .
+
+    # - gcloud services enable run.googleapis.com
+
+    - echo "🚀 Deploying chatbot to Cloud Run"
+    - >
+      gcloud run deploy chatbot
+      --image gcr.io/$GCP_PROJECT_ID/chatbot-api
+      --platform managed
+      --region asia-south1
+      --allow-unauthenticated
